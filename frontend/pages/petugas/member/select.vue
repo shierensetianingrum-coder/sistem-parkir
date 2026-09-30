@@ -1,12 +1,8 @@
 <template>
   <div class="min-h-screen bg-[#F3F7F5] p-5 md:p-8">
 
-    <!-- ================================================= -->
     <!-- HEADER -->
-    <!-- ================================================= -->
-
     <div class="mb-7">
-
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
 
         <div>
@@ -43,21 +39,15 @@
           </div>
         </div>
 
-
-        <!-- KEMBALI -->
         <button
           type="button"
           @click="router.push('/petugas')"
           class="
-            flex
-            items-center
-            justify-center
-            gap-2
+            flex items-center justify-center gap-2
             bg-[#0B2A1D]
             hover:bg-[#164A31]
             text-white
-            px-5
-            py-3
+            px-5 py-3
             rounded-xl
             font-semibold
             shadow-lg
@@ -69,14 +59,10 @@
         </button>
 
       </div>
-
     </div>
 
 
-    <!-- ================================================= -->
-    <!-- STATISTIK MEMBER -->
-    <!-- ================================================= -->
-
+    <!-- STATISTIK -->
     <div
       class="
         grid
@@ -88,7 +74,7 @@
       "
     >
 
-      <!-- TOTAL -->
+      <!-- TOTAL MEMBER -->
       <div
         class="
           bg-white
@@ -101,7 +87,6 @@
           transition
         "
       >
-
         <div class="flex items-center justify-between">
 
           <div>
@@ -124,9 +109,7 @@
               rounded-xl
               bg-green-100
               text-green-700
-              flex
-              items-center
-              justify-center
+              flex items-center justify-center
               text-xl
             "
           >
@@ -134,11 +117,10 @@
           </div>
 
         </div>
-
       </div>
 
 
-      <!-- LUNAS -->
+      <!-- MEMBER LUNAS -->
       <div
         class="
           bg-white
@@ -151,7 +133,6 @@
           transition
         "
       >
-
         <div class="flex items-center justify-between">
 
           <div>
@@ -174,9 +155,7 @@
               rounded-xl
               bg-green-100
               text-green-600
-              flex
-              items-center
-              justify-center
+              flex items-center justify-center
               text-xl
             "
           >
@@ -184,7 +163,6 @@
           </div>
 
         </div>
-
       </div>
 
 
@@ -201,7 +179,6 @@
           transition
         "
       >
-
         <div class="flex items-center justify-between">
 
           <div>
@@ -224,9 +201,7 @@
               rounded-xl
               bg-orange-100
               text-orange-500
-              flex
-              items-center
-              justify-center
+              flex items-center justify-center
               text-xl
             "
           >
@@ -234,7 +209,6 @@
           </div>
 
         </div>
-
       </div>
 
 
@@ -251,7 +225,6 @@
           transition
         "
       >
-
         <div class="flex items-center justify-between">
 
           <div>
@@ -274,9 +247,7 @@
               rounded-xl
               bg-emerald-100
               text-emerald-700
-              flex
-              items-center
-              justify-center
+              flex items-center justify-center
               text-xl
             "
           >
@@ -284,16 +255,12 @@
           </div>
 
         </div>
-
       </div>
 
     </div>
 
 
-    <!-- ================================================= -->
     <!-- TOOLBAR -->
-    <!-- ================================================= -->
-
     <div
       class="
         bg-white
@@ -369,7 +336,7 @@
           </div>
 
 
-          <!-- TAMBAH -->
+          <!-- TAMBAH MEMBER -->
           <button
             type="button"
             @click="router.push('/petugas/member/tambah')"
@@ -396,10 +363,7 @@
     </div>
 
 
-    <!-- ================================================= -->
-    <!-- TABEL MEMBER -->
-    <!-- ================================================= -->
-
+    <!-- TABEL -->
     <div
       class="
         bg-white
@@ -411,7 +375,6 @@
       "
     >
 
-      <!-- TABLE HEADER -->
       <div
         class="
           px-6
@@ -455,7 +418,7 @@
 
       <div class="overflow-x-auto">
 
-        <table class="w-full min-w-[1100px]">
+        <table class="w-full min-w-[1250px]">
 
           <thead>
 
@@ -588,6 +551,10 @@
                   Rp {{ formatRupiah(item.total_harga) }}
                 </span>
 
+                <p class="text-[11px] text-gray-400 mt-1">
+                  {{ formatPeriode(item.periode_bulan) }}
+                </p>
+
               </td>
 
 
@@ -633,7 +600,7 @@
                   {{
                     item.status === 'lunas'
                       ? 'Lunas'
-                      : item.status
+                      : 'Belum Lunas'
                   }}
 
                 </span>
@@ -708,6 +675,29 @@
                     "
                   >
                     Edit
+                  </button>
+
+
+                  <!-- BAYAR -->
+                  <button
+                    type="button"
+                    :disabled="item.status === 'lunas'"
+                    @click.stop="bayarMember(item)"
+                    class="
+                      bg-emerald-600
+                      hover:bg-emerald-700
+                      text-white
+                      px-3
+                      py-2
+                      rounded-lg
+                      text-sm
+                      font-semibold
+                      transition
+                      disabled:opacity-40
+                      disabled:cursor-not-allowed
+                    "
+                  >
+                    Bayar
                   </button>
 
 
@@ -790,10 +780,7 @@
     </div>
 
 
-    <!-- ================================================= -->
-    <!-- MODAL DETAIL MEMBER / KARTU KECIL -->
-    <!-- ================================================= -->
-
+    <!-- MODAL DETAIL -->
     <div
       v-if="showModal"
       class="
@@ -812,7 +799,6 @@
 
       <div class="w-full max-w-[330px]">
 
-        <!-- KARTU MEMBER -->
         <div
           class="
             bg-white
@@ -822,7 +808,7 @@
           "
         >
 
-          <!-- HEADER TIKET -->
+          <!-- HEADER MODAL -->
           <div
             class="
               bg-gradient-to-r
@@ -846,7 +832,7 @@
           </div>
 
 
-          <!-- ISI KARTU -->
+          <!-- ISI MODAL -->
           <div class="p-5">
 
             <!-- QR -->
@@ -866,11 +852,7 @@
                 <img
                   v-if="qr"
                   :src="qr"
-                  class="
-                    w-32
-                    h-32
-                    object-contain
-                  "
+                  class="w-32 h-32 object-contain"
                 />
 
                 <div
@@ -924,15 +906,13 @@
             </div>
 
 
-            <!-- GARIS -->
             <div class="border-t border-dashed border-gray-300 mb-4"></div>
 
 
-            <!-- DATA MEMBER -->
+            <!-- DATA -->
             <div class="space-y-2.5 text-xs">
 
               <div class="flex justify-between gap-3">
-
                 <span class="text-gray-500">
                   Nama
                 </span>
@@ -940,12 +920,10 @@
                 <span class="font-semibold text-right text-gray-800">
                   {{ detailMember.nama_member || '-' }}
                 </span>
-
               </div>
 
 
               <div class="flex justify-between gap-3">
-
                 <span class="text-gray-500">
                   Perusahaan
                 </span>
@@ -953,7 +931,39 @@
                 <span class="font-semibold text-right text-gray-800">
                   {{ detailMember.nama_perusahaan || '-' }}
                 </span>
+              </div>
 
+
+              <div class="flex justify-between gap-3">
+                <span class="text-gray-500">
+                  Periode
+                </span>
+
+                <span class="font-semibold text-right">
+                  {{ formatPeriode(detailMember.periode_bulan) }}
+                </span>
+              </div>
+
+
+              <div class="flex justify-between gap-3">
+                <span class="text-gray-500">
+                  Tagihan
+                </span>
+
+                <span class="font-semibold text-right">
+                  Rp {{ formatRupiah(detailMember.total_harga) }}
+                </span>
+              </div>
+
+
+              <div class="flex justify-between gap-3">
+                <span class="text-gray-500">
+                  Dibayar
+                </span>
+
+                <span class="font-semibold text-right">
+                  Rp {{ formatRupiah(detailMember.jumlah_bayar) }}
+                </span>
               </div>
 
 
@@ -980,7 +990,7 @@
                   {{
                     detailMember.status === 'lunas'
                       ? 'LUNAS'
-                      : detailMember.status || '-'
+                      : 'BELUM LUNAS'
                   }}
                 </span>
 
@@ -1014,11 +1024,9 @@
                 text-center
               "
             >
-
               <p class="text-[9px] text-green-700 leading-relaxed">
                 Scan QR ini untuk akses masuk parkir
               </p>
-
             </div>
 
 
@@ -1082,7 +1090,6 @@ import {
   computed,
   onMounted
 } from "vue";
-
 
 const { $api } = useNuxtApp();
 
@@ -1169,9 +1176,8 @@ const totalPendapatan = computed(() => {
   return members.value.reduce(
     (total: number, item: any) => {
 
-      return total + Number(
-        item.jumlah_bayar || 0
-      );
+      return total +
+        Number(item.jumlah_bayar || 0);
 
     },
     0
@@ -1182,7 +1188,7 @@ const totalPendapatan = computed(() => {
 
 
 /* =========================================================
-   INITIAL NAMA
+   INITIAL
 ========================================================= */
 
 const getInitial = (nama: any) => {
@@ -1201,7 +1207,7 @@ const getInitial = (nama: any) => {
 
 
 /* =========================================================
-   LOAD DATA MEMBER
+   LOAD
 ========================================================= */
 
 const load = async () => {
@@ -1219,9 +1225,7 @@ const load = async () => {
     members.value =
       res.data.data || [];
 
-  }
-
-  catch (error: any) {
+  } catch (error: any) {
 
     console.error(
       "Gagal mengambil member:",
@@ -1240,7 +1244,7 @@ const load = async () => {
 
 
 /* =========================================================
-   DETAIL MEMBER
+   DETAIL
 ========================================================= */
 
 const lihatDetail = async (
@@ -1254,7 +1258,6 @@ const lihatDetail = async (
         `/members/${id}`
       );
 
-
     if (!res.data.status) {
 
       alert(
@@ -1266,7 +1269,6 @@ const lihatDetail = async (
 
     }
 
-
     detailMember.value =
       res.data.data;
 
@@ -1276,9 +1278,7 @@ const lihatDetail = async (
     showModal.value =
       true;
 
-  }
-
-  catch (error: any) {
+  } catch (error: any) {
 
     console.error(
       "ERROR DETAIL MEMBER:",
@@ -1288,6 +1288,118 @@ const lihatDetail = async (
     alert(
       error?.response?.data?.message ||
       "Gagal mengambil detail member"
+    );
+
+  }
+
+};
+
+
+
+/* =========================================================
+   BAYAR MEMBER
+========================================================= */
+
+const bayarMember = async (
+  member: any
+) => {
+
+  if (
+    String(member.status || "").toLowerCase() === "lunas"
+  ) {
+
+    alert(
+      "Member ini sudah lunas untuk bulan ini."
+    );
+
+    return;
+
+  }
+
+
+  const nominalInput = prompt(
+    `Pembayaran ${formatPeriode(member.periode_bulan)}\n` +
+    `Tagihan: Rp ${formatRupiah(member.total_harga)}\n\n` +
+    `Masukkan jumlah pembayaran:`,
+    String(member.total_harga)
+  );
+
+
+  if (nominalInput === null) {
+    return;
+  }
+
+
+  const nominal =
+    Number(
+      String(nominalInput)
+        .replace(/\./g, "")
+        .replace(/,/g, "")
+        .trim()
+    );
+
+
+  if (
+    !Number.isFinite(nominal) ||
+    nominal < 0
+  ) {
+
+    alert(
+      "Jumlah pembayaran tidak valid."
+    );
+
+    return;
+
+  }
+
+
+  if (
+    nominal > Number(member.total_harga)
+  ) {
+
+    alert(
+      `Pembayaran tidak boleh lebih dari Rp ${formatRupiah(member.total_harga)}.`
+    );
+
+    return;
+
+  }
+
+
+  try {
+
+    /*
+     * PENTING:
+     * Route Laravel pembayaran member
+     * menggunakan PUT, bukan POST.
+     */
+    const res =
+      await $api.put(
+        `/members/${member.id}/pembayaran`,
+        {
+          jumlah_bayar: nominal
+        }
+      );
+
+
+    alert(
+      res.data.message ||
+      "Pembayaran berhasil."
+    );
+
+
+    await load();
+
+  } catch (error: any) {
+
+    console.error(
+      "Gagal pembayaran:",
+      error
+    );
+
+    alert(
+      error?.response?.data?.message ||
+      "Pembayaran gagal."
     );
 
   }
@@ -1332,7 +1444,7 @@ const edit = (
 
 
 /* =========================================================
-   HAPUS MEMBER
+   HAPUS
 ========================================================= */
 
 const hapus = async (
@@ -1364,9 +1476,7 @@ const hapus = async (
 
     await load();
 
-  }
-
-  catch (error: any) {
+  } catch (error: any) {
 
     console.error(
       "Gagal hapus:",
@@ -1419,6 +1529,7 @@ const downloadMember = () => {
       "canvas"
     );
 
+
   const ctx =
     canvas.getContext(
       "2d"
@@ -1436,17 +1547,9 @@ const downloadMember = () => {
   }
 
 
-  /* =====================================================
-     UKURAN KARTU KECIL
-  ===================================================== */
-
   canvas.width = 400;
   canvas.height = 600;
 
-
-  /* =====================================================
-     BACKGROUND
-  ===================================================== */
 
   ctx.fillStyle =
     "white";
@@ -1458,10 +1561,6 @@ const downloadMember = () => {
     600
   );
 
-
-  /* =====================================================
-     HEADER
-  ===================================================== */
 
   ctx.fillStyle =
     "#0B2A1D";
@@ -1500,10 +1599,6 @@ const downloadMember = () => {
   );
 
 
-  /* =====================================================
-     DATA ATAS
-  ===================================================== */
-
   ctx.textAlign =
     "left";
 
@@ -1533,10 +1628,6 @@ const downloadMember = () => {
   );
 
 
-  /* =====================================================
-     QR
-  ===================================================== */
-
   const img =
     new Image();
 
@@ -1551,10 +1642,6 @@ const downloadMember = () => {
       200
     );
 
-
-    /* =================================================
-       GARIS
-    ================================================= */
 
     ctx.strokeStyle =
       "#dddddd";
@@ -1581,15 +1668,12 @@ const downloadMember = () => {
     ctx.setLineDash([]);
 
 
-    /* =================================================
-       DATA MEMBER
-    ================================================= */
-
     ctx.fillStyle =
       "#666";
 
     ctx.font =
       "12px Arial";
+
 
     ctx.fillText(
       "Nama",
@@ -1597,17 +1681,20 @@ const downloadMember = () => {
       425
     );
 
+
     ctx.fillText(
       "Perusahaan",
       35,
       455
     );
 
+
     ctx.fillText(
       "Status",
       35,
       485
     );
+
 
     ctx.fillText(
       "Berlaku Sampai",
@@ -1625,17 +1712,20 @@ const downloadMember = () => {
     ctx.textAlign =
       "right";
 
+
     ctx.fillText(
       detailMember.value.nama_member || "-",
       365,
       425
     );
 
+
     ctx.fillText(
       detailMember.value.nama_perusahaan || "-",
       365,
       455
     );
+
 
     ctx.fillText(
       String(
@@ -1644,6 +1734,7 @@ const downloadMember = () => {
       365,
       485
     );
+
 
     ctx.fillText(
       formatTanggal(
@@ -1654,10 +1745,6 @@ const downloadMember = () => {
     );
 
 
-    /* =================================================
-       FOOTER
-    ================================================= */
-
     ctx.textAlign =
       "center";
 
@@ -1667,6 +1754,7 @@ const downloadMember = () => {
     ctx.font =
       "10px Arial";
 
+
     ctx.fillText(
       "Scan QR ini untuk akses masuk parkir",
       200,
@@ -1674,22 +1762,21 @@ const downloadMember = () => {
     );
 
 
-    /* =================================================
-       DOWNLOAD
-    ================================================= */
-
     const link =
       document.createElement(
         "a"
       );
 
+
     link.download =
       `kartu-member-${detailMember.value.kode_member}.png`;
+
 
     link.href =
       canvas.toDataURL(
         "image/png"
       );
+
 
     link.click();
 
@@ -1739,9 +1826,7 @@ const formatTanggal = (
 ) => {
 
   if (!tanggal) {
-
     return "-";
-
   }
 
 
@@ -1749,6 +1834,46 @@ const formatTanggal = (
     tanggal
   ).toLocaleDateString(
     "id-ID"
+  );
+
+};
+
+
+
+/* =========================================================
+   FORMAT PERIODE
+========================================================= */
+
+const formatPeriode = (
+  periode: any
+) => {
+
+  if (!periode) {
+    return "-";
+  }
+
+
+  const tanggal =
+    new Date(periode);
+
+
+  if (
+    Number.isNaN(
+      tanggal.getTime()
+    )
+  ) {
+
+    return "-";
+
+  }
+
+
+  return tanggal.toLocaleDateString(
+    "id-ID",
+    {
+      month: "long",
+      year: "numeric"
+    }
   );
 
 };

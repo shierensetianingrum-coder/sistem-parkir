@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Member;
+use App\Models\TagihanMember;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
@@ -11,6 +12,99 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 class MemberController extends Controller
 {
     // ===================================
+    // HARGA MEMBER PER BULAN
+    // ===================================
+
+    private $hargaMember = 150000;
+
+
+    // ===================================
+    // MEMBUAT / MENGAMBIL TAGIHAN BULAN INI
+    // ===================================
+
+    private function getTagihanBulanIni(Member $member)
+    {
+        $periode = Carbon::now()->startOfMonth()->toDateString();
+
+        $tagihan = TagihanMember::firstOrCreate(
+            [
+                'member_id' => $member->id,
+                'periode_bulan' => $periode,
+            ],
+            [
+                'total_harga' => $this->hargaMember,
+                'jumlah_bayar' => 0,
+                'kembalian' => 0,
+                'status' => 'belum lunas',
+                'tanggal_bayar' => null,
+            ]
+        );
+
+        return $tagihan;
+    }
+
+
+    // ===================================
+    // MENYINKRONKAN DATA MEMBER DENGAN
+    // TAGIHAN BULAN BERJALAN
+    // ===================================
+
+    private function syncMemberWithTagihan(Member $member)
+    {
+        $tagihan = $this->getTagihanBulanIni($member);
+
+        $tanggalExpired = Carbon::now()->endOfMonth();
+
+        $member->update([
+            'total_harga' => $tagihan->total_harga,
+            'jumlah_bayar' => $tagihan->jumlah_bayar,
+            'kembalian' => $tagihan->kembalian,
+            'status' => $tagihan->status,
+            'tanggal_bayar' => $tagihan->tanggal_bayar,
+            'tanggal_expired' => $tanggalExpired,
+        ]);
+
+        $member->refresh();
+
+        return $tagihan;
+    }
+
+
+    // ===================================
+    // DATA MEMBER + TAGIHAN BULAN INI
+    // ===================================
+
+    private function formatMember(Member $member)
+    {
+        $tagihan = $this->getTagihanBulanIni($member);
+
+        return [
+            'id' => $member->id,
+            'kode_member' => $member->kode_member,
+            'token' => $member->token,
+
+            'nama_member' => $member->nama_member,
+            'nama_perusahaan' => $member->nama_perusahaan,
+
+            'total_harga' => $tagihan->total_harga,
+            'jumlah_bayar' => $tagihan->jumlah_bayar,
+            'kembalian' => $tagihan->kembalian,
+
+            'status' => $tagihan->status,
+
+            'tanggal_bayar' => $tagihan->tanggal_bayar,
+            'tanggal_mulai' => $member->tanggal_mulai,
+
+            'tanggal_expired' => $member->tanggal_expired,
+
+            'periode_bulan' => $tagihan->periode_bulan,
+
+            'tagihan_id' => $tagihan->id,
+        ];
+    }
+
+
+    // ===================================
     // TAMPIL SEMUA MEMBER
     // ===================================
 
@@ -18,9 +112,17 @@ class MemberController extends Controller
     {
         $members = Member::latest()->get();
 
+        $data = [];
+
+        foreach ($members as $member) {
+            $this->syncMemberWithTagihan($member);
+
+            $data[] = $this->formatMember($member);
+        }
+
         return response()->json([
             "status" => true,
-            "data" => $members
+            "data" => $data
         ]);
     }
 
@@ -37,7 +139,7 @@ class MemberController extends Controller
             'jumlah_bayar' => 'required|numeric|min:0'
         ]);
 
-        $harga_member = 150000;
+        $harga_member = $this->hargaMember;
         $jumlah_bayar = (float) $request->jumlah_bayar;
 
         if ($jumlah_bayar > $harga_member) {
@@ -56,12 +158,18 @@ class MemberController extends Controller
 
         $tanggal_mulai = Carbon::now();
 
-        $tanggal_expired = $tanggal_mulai->copy()->addMonth();
+        // Karena sistem sekarang berdasarkan bulan kalender,
+        // masa aktif pembayaran adalah sampai akhir bulan.
+        $tanggal_expired = Carbon::now()->endOfMonth();
+
+        // ===================================
+        // BUAT DATA MEMBER
+        // ===================================
 
         $member = Member::create([
             'kode_member' => $this->generateKodeMember(),
 
-            // TOKEN INI YANG MASUK KE QR
+            // Token yang masuk ke QR
             'token' => (string) Str::uuid(),
 
             'nama_member' => $request->nama_member,
@@ -73,15 +181,39 @@ class MemberController extends Controller
 
             'status' => $status,
 
-            'tanggal_bayar' => Carbon::now(),
+            'tanggal_bayar' => $jumlah_bayar > 0
+                ? Carbon::now()
+                : null,
+
             'tanggal_mulai' => $tanggal_mulai,
             'tanggal_expired' => $tanggal_expired
         ]);
 
+        // ===================================
+        // BUAT TAGIHAN BULAN INI
+        // ===================================
+
+        TagihanMember::create([
+            'member_id' => $member->id,
+            'periode_bulan' => Carbon::now()->startOfMonth(),
+
+            'total_harga' => $harga_member,
+            'jumlah_bayar' => $jumlah_bayar,
+            'kembalian' => $kembalian,
+
+            'status' => $status,
+
+            'tanggal_bayar' => $jumlah_bayar > 0
+                ? Carbon::now()
+                : null,
+        ]);
+
+        $member->refresh();
+
         return response()->json([
             "status" => true,
             "message" => "Member berhasil dibuat",
-            "data" => $member
+            "data" => $this->formatMember($member)
         ], 201);
     }
 
@@ -117,7 +249,10 @@ class MemberController extends Controller
             ], 404);
         }
 
-        // QR BERISI TOKEN
+        // Pastikan tagihan bulan berjalan tersedia
+        $tagihan = $this->syncMemberWithTagihan($member);
+
+        // QR berisi token member
         $qr = base64_encode(
             QrCode::format('svg')
                 ->size(200)
@@ -129,17 +264,25 @@ class MemberController extends Controller
             "status" => true,
             "data" => [
                 "id" => $member->id,
+
                 "kode_member" => $member->kode_member,
                 "token" => $member->token,
+
                 "nama_member" => $member->nama_member,
                 "nama_perusahaan" => $member->nama_perusahaan,
-                "total_harga" => $member->total_harga,
-                "jumlah_bayar" => $member->jumlah_bayar,
-                "kembalian" => $member->kembalian,
-                "status" => $member->status,
-                "tanggal_bayar" => $member->tanggal_bayar,
+
+                "total_harga" => $tagihan->total_harga,
+                "jumlah_bayar" => $tagihan->jumlah_bayar,
+                "kembalian" => $tagihan->kembalian,
+
+                "status" => $tagihan->status,
+
+                "tanggal_bayar" => $tagihan->tanggal_bayar,
                 "tanggal_mulai" => $member->tanggal_mulai,
                 "tanggal_expired" => $member->tanggal_expired,
+
+                "periode_bulan" => $tagihan->periode_bulan,
+
                 "qr" => "data:image/svg+xml;base64," . $qr
             ]
         ]);
@@ -171,16 +314,18 @@ class MemberController extends Controller
             'nama_perusahaan' => $request->nama_perusahaan
         ]);
 
+        $member->refresh();
+
         return response()->json([
             "status" => true,
             "message" => "Data member berhasil diperbarui",
-            "data" => $member
+            "data" => $this->formatMember($member)
         ]);
     }
 
 
     // ===================================
-    // UPDATE PEMBAYARAN
+    // UPDATE PEMBAYARAN BULAN INI
     // ===================================
 
     public function updatePembayaran(Request $request, $id)
@@ -198,8 +343,14 @@ class MemberController extends Controller
             'jumlah_bayar' => 'required|numeric|min:0'
         ]);
 
+        // ===================================
+        // AMBIL TAGIHAN BULAN BERJALAN
+        // ===================================
+
+        $tagihan = $this->getTagihanBulanIni($member);
+
         $jumlah_bayar = (float) $request->jumlah_bayar;
-        $total_harga = (float) $member->total_harga;
+        $total_harga = (float) $tagihan->total_harga;
 
         if ($jumlah_bayar > $total_harga) {
             return response()->json([
@@ -215,29 +366,47 @@ class MemberController extends Controller
             ? "lunas"
             : "belum lunas";
 
-        $tanggal_expired = $member->tanggal_expired;
+        $tanggal_bayar = $jumlah_bayar > 0
+            ? Carbon::now()
+            : null;
 
-        if ($status === "lunas") {
-            $tanggal_expired = Carbon::now()->addMonth();
-        }
+        // ===================================
+        // UPDATE TAGIHAN BULAN INI
+        // ===================================
 
-        $member->update([
+        $tagihan->update([
             'jumlah_bayar' => $jumlah_bayar,
             'kembalian' => $kembalian,
             'status' => $status,
-            'tanggal_bayar' => Carbon::now(),
-            'tanggal_expired' => $tanggal_expired
+            'tanggal_bayar' => $tanggal_bayar,
+        ]);
+
+        // ===================================
+        // SINKRONKAN DATA MEMBER
+        // ===================================
+
+        $tanggal_expired = Carbon::now()->endOfMonth();
+
+        $member->update([
+            'total_harga' => $total_harga,
+            'jumlah_bayar' => $jumlah_bayar,
+            'kembalian' => $kembalian,
+            'status' => $status,
+            'tanggal_bayar' => $tanggal_bayar,
+            'tanggal_expired' => $tanggal_expired,
         ]);
 
         $member->refresh();
 
         return response()->json([
             "status" => true,
+
             "message" => $status === "lunas"
-                ? "Pembayaran lunas dan masa aktif member diperbarui sampai " .
+                ? "Pembayaran bulan ini berhasil. Member lunas sampai " .
                     Carbon::parse($tanggal_expired)->format('d/m/Y')
-                : "Pembayaran berhasil diperbarui",
-            "data" => $member
+                : "Pembayaran bulan ini berhasil diperbarui",
+
+            "data" => $this->formatMember($member)
         ]);
     }
 
@@ -257,6 +426,8 @@ class MemberController extends Controller
             ], 404);
         }
 
+        // Karena tagihan_members menggunakan cascadeOnDelete,
+        // seluruh tagihan milik member ikut terhapus.
         $member->delete();
 
         return response()->json([
@@ -279,7 +450,10 @@ class MemberController extends Controller
 
         $kode = trim($request->token);
 
-        // CARI DARI TOKEN QR ATAU KODE MEMBER
+        // ===================================
+        // CARI MEMBER
+        // ===================================
+
         $member = Member::where('token', $kode)
             ->orWhere('kode_member', $kode)
             ->first();
@@ -292,29 +466,29 @@ class MemberController extends Controller
         }
 
         // ===================================
-        // CEK EXPIRED
+        // AMBIL TAGIHAN BULAN INI
         // ===================================
 
-        if (
-            !$member->tanggal_expired ||
-            Carbon::now()->greaterThan(
-                Carbon::parse($member->tanggal_expired)
-            )
-        ) {
+        $tagihan = $this->getTagihanBulanIni($member);
+
+        // ===================================
+        // CEK PEMBAYARAN BULAN INI
+        // ===================================
+
+        if (strtolower(trim($tagihan->status)) !== "lunas") {
             return response()->json([
                 "status" => false,
-                "message" => "Member sudah expired"
-            ]);
-        }
-
-        // ===================================
-        // CEK PEMBAYARAN
-        // ===================================
-
-        if (strtolower(trim($member->status)) !== "lunas") {
-            return response()->json([
-                "status" => false,
-                "message" => "Member belum melakukan pembayaran"
+                "message" => "Member belum melakukan pembayaran bulan ini",
+                "data" => [
+                    "is_member" => true,
+                    "kode_member" => $member->kode_member,
+                    "nama_member" => $member->nama_member,
+                    "nama_perusahaan" => $member->nama_perusahaan,
+                    "periode_bulan" => $tagihan->periode_bulan,
+                    "status" => $tagihan->status,
+                    "total_harga" => $tagihan->total_harga,
+                    "jumlah_bayar" => $tagihan->jumlah_bayar
+                ]
             ]);
         }
 
@@ -322,33 +496,111 @@ class MemberController extends Controller
         // MEMBER VALID
         // ===================================
 
+        $tanggalExpired = Carbon::now()->endOfMonth();
+
+        $member->update([
+            'status' => 'lunas',
+            'jumlah_bayar' => $tagihan->jumlah_bayar,
+            'kembalian' => $tagihan->kembalian,
+            'tanggal_bayar' => $tagihan->tanggal_bayar,
+            'tanggal_expired' => $tanggalExpired
+        ]);
+
+        $member->refresh();
+
         return response()->json([
             "status" => true,
             "message" => "Member valid",
-            "data" => $member
+            "data" => [
+                "id" => $member->id,
+                "is_member" => true,
+
+                "kode_member" => $member->kode_member,
+                "token" => $member->token,
+
+                "nama_member" => $member->nama_member,
+                "nama_perusahaan" => $member->nama_perusahaan,
+
+                "total_harga" => $tagihan->total_harga,
+                "jumlah_bayar" => $tagihan->jumlah_bayar,
+                "kembalian" => $tagihan->kembalian,
+
+                "status" => $tagihan->status,
+
+                "tanggal_bayar" => $tagihan->tanggal_bayar,
+                "tanggal_expired" => $tanggalExpired,
+
+                "periode_bulan" => $tagihan->periode_bulan,
+
+                // Member keluar = Rp0
+                "total" => 0
+            ]
         ]);
     }
 
 
     // ===================================
-    // RESET BULANAN
+    // RESET / SIAPKAN TAGIHAN BULANAN
+    // ===================================
+    //
+    // Fungsi ini TIDAK menghapus pembayaran bulan sebelumnya.
+    //
+    // Contoh:
+    //
+    // September = lunas
+    // Oktober = dibuat baru, belum lunas
+    // November = dibuat baru, belum lunas
+    //
     // ===================================
 
     public function resetBulanan()
     {
-        $affected = Member::where('status', 'lunas')
-            ->where('tanggal_expired', '<', Carbon::now())
-            ->update([
-                'status' => 'belum lunas',
-                'jumlah_bayar' => 0,
-                'kembalian' => 0,
-                'tanggal_bayar' => null
+        $periode = Carbon::now()->startOfMonth();
+
+        $members = Member::all();
+
+        $jumlahDibuat = 0;
+
+        foreach ($members as $member) {
+
+            $tagihan = TagihanMember::firstOrCreate(
+                [
+                    'member_id' => $member->id,
+                    'periode_bulan' => $periode->toDateString(),
+                ],
+                [
+                    'total_harga' => $this->hargaMember,
+                    'jumlah_bayar' => 0,
+                    'kembalian' => 0,
+                    'status' => 'belum lunas',
+                    'tanggal_bayar' => null,
+                ]
+            );
+
+            if ($tagihan->wasRecentlyCreated) {
+                $jumlahDibuat++;
+            }
+
+            // Sinkronkan member dengan tagihan bulan berjalan
+            $member->update([
+                'total_harga' => $tagihan->total_harga,
+                'jumlah_bayar' => $tagihan->jumlah_bayar,
+                'kembalian' => $tagihan->kembalian,
+                'status' => $tagihan->status,
+                'tanggal_bayar' => $tagihan->tanggal_bayar,
+                'tanggal_expired' => $periode->copy()->endOfMonth(),
             ]);
+        }
 
         return response()->json([
             "status" => true,
-            "message" => "Status member diperbarui",
-            "jumlah_diupdate" => $affected
+            "message" => "Tagihan bulan " .
+                $periode->format('m/Y') .
+                " berhasil disiapkan",
+
+            "jumlah_member" => $members->count(),
+
+            "jumlah_tagihan_baru" => $jumlahDibuat
         ]);
     }
 }
